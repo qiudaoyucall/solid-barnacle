@@ -1,0 +1,1729 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>档案验收辅助系统</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#1E40AF', // 深蓝作为主色调，体现专业性和可靠性
+                        secondary: '#3B82F6',
+                        accent: '#60A5FA',
+                        success: '#10B981',
+                        warning: '#F59E0B',
+                        danger: '#EF4444',
+                        neutral: '#64748B'
+                    },
+                    fontFamily: {
+                        inter: ['Inter', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+    
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .content-auto {
+                content-visibility: auto;
+            }
+            .card-shadow {
+                box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            }
+            .card-hover {
+                transition: all 0.3s ease;
+            }
+            .card-hover:hover {
+                transform: translateY(-5px);
+                box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+            }
+            .gradient-bg {
+                background: linear-gradient(135deg, #1E40AF 0%, #3B82F6 100%);
+            }
+            .text-shadow {
+                text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            }
+            .animate-fade-in {
+                animation: fadeIn 0.5s ease-in-out;
+            }
+            .animate-slide-up {
+                animation: slideUp 0.5s ease-out;
+            }
+            .animate-pulse-soft {
+                animation: pulseSoft 2s infinite;
+            }
+            .table-fixed-layout {
+                table-layout: fixed;
+            }
+            .cell-auto-wrap {
+                white-space: normal;
+                word-wrap: break-word;
+                vertical-align: top;
+                padding-top: 12px;
+            }
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        
+        @keyframes slideUp {
+            from { transform: translateY(20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        
+        @keyframes pulseSoft {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+    </style>
+</head>
+<body class="font-inter bg-gray-50 min-h-screen flex flex-col">
+    <!-- 页面头部 -->
+    <header id="main-header" class="bg-white shadow-sm fixed w-full z-50 hidden">
+        <div class="container mx-auto px-4 py-3 flex justify-between items-center">
+            <div class="flex items-center space-x-3">
+                <i class="fa fa-archive text-2xl text-primary"></i>
+                <h1 class="text-xl font-bold text-gray-800">档案验收辅助系统</h1>
+            </div>
+            
+            <div class="flex items-center space-x-6">
+                <div id="notification-icon-container" class="relative cursor-pointer hidden">
+                    <i class="fa fa-bell-o text-xl text-gray-600 hover:text-primary transition-colors"></i>
+                    <span id="notification-badge" class="absolute -top-1 -right-1 bg-danger text-white text-xs rounded-full h-4 w-4 flex items-center justify-center hidden">0</span>
+                </div>
+                
+                <div class="flex items-center space-x-2">
+                    <div id="user-role-badge" class="px-2 py-1 text-xs rounded-full bg-gray-100 text-gray-700 hidden">
+                        管理员
+                    </div>
+                    <span id="username-display" class="text-gray-700 hidden"></span>
+                    <button id="logout-btn" class="text-gray-500 hover:text-danger transition-colors hidden">
+                        <i class="fa fa-sign-out"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+    
+    <!-- 主内容区 -->
+    <main class="flex-grow flex items-center justify-center p-4 pt-20">
+        <!-- 登录界面 -->
+        <section id="login-section" class="w-full max-w-md animate-fade-in">
+            <div class="bg-white rounded-2xl p-8 card-shadow">
+                <div class="text-center mb-8">
+                    <div class="inline-flex items-center justify-center w-16 h-16 rounded-full gradient-bg mb-4">
+                        <i class="fa fa-archive text-white text-2xl"></i>
+                    </div>
+                    <h2 class="text-2xl font-bold text-gray-800">档案验收辅助系统</h2>
+                    <p class="text-gray-500 mt-2">请登录以继续</p>
+                </div>
+                
+                <form id="login-form">
+                    <div class="mb-5">
+                        <label for="username" class="block text-sm font-medium text-gray-700 mb-1">用户名</label>
+                        <div class="relative">
+                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                <i class="fa fa-user text-gray-400"></i>
+                            </div>
+                            <input type="text" id="username" name="username" required
+                                class="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all outline-none"
+                                placeholder="请输入用户名">
+                        </div>
+                    </div>
+                    
+                    <div class="mb-6">
+                        <label for="password" class="block text-sm font-medium text-gray-700 mb-1">密码</label>
+                        <div class="relative">
+                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                <i class="fa fa-lock text-gray-400"></i>
+                            </div>
+                            <input type="password" id="password" name="password" required
+                                class="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all outline-none"
+                                placeholder="请输入密码">
+                        </div>
+                    </div>
+                    
+                    <button type="submit" class="w-full bg-primary hover:bg-primary/90 text-white font-medium py-3 px-4 rounded-lg transition-all flex items-center justify-center">
+                        <i class="fa fa-sign-in mr-2"></i> 登录
+                    </button>
+                </form>
+                
+                <div id="login-error" class="mt-4 p-3 bg-danger/10 border border-danger/20 rounded-lg text-danger text-sm hidden">
+                    <i class="fa fa-exclamation-circle mr-1"></i>
+                    <span>用户名或密码错误，请重试</span>
+                </div>
+            </div>
+        </section>
+        
+        <!-- 专家信息填写界面 -->
+        <section id="expert-info-section" class="w-full max-w-md animate-slide-up hidden">
+            <div class="bg-white rounded-2xl p-8 card-shadow">
+                <div class="text-center mb-6">
+                    <i class="fa fa-user-circle-o text-4xl text-primary mb-4"></i>
+                    <h2 class="text-xl font-bold text-gray-800">完善专家信息</h2>
+                    <p class="text-gray-500 mt-2">请填写您的姓名以完成登录</p>
+                </div>
+                
+                <form id="expert-info-form">
+                    <div class="mb-6">
+                        <label for="expert-name" class="block text-sm font-medium text-gray-700 mb-1">姓名</label>
+                        <div class="relative">
+                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                <i class="fa fa-id-card-o text-gray-400"></i>
+                            </div>
+                            <input type="text" id="expert-name" required
+                                class="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all outline-none"
+                                placeholder="请输入您的姓名">
+                        </div>
+                    </div>
+                    
+                    <button type="submit" class="w-full bg-primary hover:bg-primary/90 text-white font-medium py-3 px-4 rounded-lg transition-all flex items-center justify-center">
+                        <i class="fa fa-check mr-2"></i> 保存并进入系统
+                    </button>
+                </form>
+            </div>
+        </section>
+        
+        <!-- 管理员界面 -->
+        <section id="admin-section" class="w-full max-w-7xl animate-slide-up hidden">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- 左侧菜单 -->
+                <div class="lg:col-span-1">
+                    <div class="bg-white rounded-xl p-5 card-shadow h-full">
+                        <h3 class="font-semibold text-gray-800 mb-4 flex items-center">
+                            <i class="fa fa-tasks text-primary mr-2"></i> 管理员功能
+                        </h3>
+                        
+                        <ul class="space-y-1">
+                            <li>
+                                <button id="admin-dashboard-btn" class="w-full text-left px-4 py-3 rounded-lg bg-primary/10 text-primary font-medium flex items-center">
+                                    <i class="fa fa-dashboard mr-3 w-5 text-center"></i> 数据管理
+                                </button>
+                            </li>
+                            <li>
+                                <button id="admin-experts-btn" class="w-full text-left px-4 py-3 rounded-lg hover:bg-gray-100 text-gray-700 transition-colors flex items-center">
+                                    <i class="fa fa-users mr-3 w-5 text-center"></i> 专家管理
+                                </button>
+                            </li>
+                            <li>
+                                <button id="admin-settings-btn" class="w-full text-left px-4 py-3 rounded-lg hover:bg-gray-100 text-gray-700 transition-colors flex items-center">
+                                    <i class="fa fa-cog mr-3 w-5 text-center"></i> 系统设置
+                                </button>
+                            </li>
+                        </ul>
+                        
+                        <div class="mt-8 pt-6 border-t border-gray-100">
+                            <h4 class="font-medium text-gray-700 mb-3">系统状态</h4>
+                            <div class="space-y-3">
+                                <div class="flex justify-between items-center">
+                                    <span class="text-sm text-gray-600">当前案卷总数</span>
+                                    <span id="admin-total-records" class="text-sm font-medium text-primary">0</span>
+                                </div>
+                                <div class="flex justify-between items-center">
+                                    <span class="text-sm text-gray-600">已配置专家数</span>
+                                    <span id="admin-total-experts" class="text-sm font-medium text-primary">0</span>
+                                </div>
+                                <div class="flex justify-between items-center">
+                                    <span class="text-sm text-gray-600">正在调阅的案卷</span>
+                                    <span id="admin-active-records" class="text-sm font-medium text-warning">0</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 右侧内容区 -->
+                <div class="lg:col-span-2 space-y-6">
+                    <!-- 数据管理面板 -->
+                    <div id="admin-dashboard-panel" class="bg-white rounded-xl p-6 card-shadow">
+                        <h3 class="font-semibold text-gray-800 mb-6 flex items-center">
+                            <i class="fa fa-upload text-primary mr-2"></i> 案卷数据管理
+                        </h3>
+                        
+                        <!-- 文件上传区域 -->
+                        <div class="border-2 border-dashed border-gray-200 rounded-lg p-8 text-center hover:border-primary transition-all cursor-pointer mb-8" id="admin-upload-area">
+                            <input type="file" id="admin-file-input" class="hidden" accept=".xls,.xlsx">
+                            <div class="mb-4">
+                                <i class="fa fa-file-excel-o text-5xl text-gray-300"></i>
+                            </div>
+                            <h4 class="font-medium text-gray-800 mb-2">拖放Excel文件到此处或点击上传</h4>
+                            <p class="text-sm text-gray-500">支持 .xls 或 .xlsx 格式，新文件将覆盖原有数据</p>
+                        </div>
+                        
+                        <!-- 上传文件信息 -->
+                        <div id="admin-upload-info" class="mb-6 hidden">
+                            <div class="flex items-center p-3 bg-gray-50 rounded-lg">
+                                <i class="fa fa-file-text-o text-primary mr-3"></i>
+                                <div class="flex-grow">
+                                    <div class="font-medium text-gray-800 truncate" id="admin-file-name">文件名</div>
+                                    <div class="text-xs text-gray-500" id="admin-file-size">文件大小</div>
+                                </div>
+                                <button id="admin-remove-file" class="text-gray-400 hover:text-danger transition-colors">
+                                    <i class="fa fa-times"></i>
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- 上传按钮 -->
+                        <div class="flex justify-center mb-8">
+                            <button id="admin-upload-btn" class="bg-primary hover:bg-primary/90 text-white font-medium py-2.5 px-8 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center" disabled>
+                                <i class="fa fa-upload mr-2"></i>
+                                上传并导入数据
+                            </button>
+                        </div>
+                        
+                        <!-- 上传进度 -->
+                        <div id="admin-upload-progress" class="hidden mb-6">
+                            <div class="flex justify-between text-sm mb-2">
+                                <span class="text-gray-600">正在导入数据...</span>
+                                <span id="admin-progress-percentage" class="font-medium text-primary">0%</span>
+                            </div>
+                            <div class="w-full bg-gray-200 rounded-full h-2.5 overflow-hidden">
+                                <div id="admin-progress-bar" class="bg-primary h-full rounded-full transition-all duration-300" style="width: 0%"></div>
+                            </div>
+                        </div>
+                        
+                        <!-- 数据预览 -->
+                        <div id="admin-data-preview" class="hidden">
+                            <h4 class="font-medium text-gray-800 mb-4">数据预览</h4>
+                            <div class="overflow-x-auto">
+                                <table class="min-w-full border-collapse table-fixed-layout">
+                                    <thead>
+                                        <tr class="bg-gray-50">
+                                            <th class="w-16 px-4 py-3 text-left text-sm font-semibold text-gray-600 border-b">序号</th>
+                                            <th class="w-32 px-4 py-3 text-left text-sm font-semibold text-gray-600 border-b">档号</th>
+                                            <th class="flex-1 px-4 py-3 text-left text-sm font-semibold text-gray-600 border-b">案卷题名</th>
+                                            <th class="w-24 px-4 py-3 text-left text-sm font-semibold text-gray-600 border-b">状态</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="admin-preview-body">
+                                        <!-- 预览数据将通过JS动态生成 -->
+                                    </tbody>
+                                </table>
+                            </div>
+                            
+                            <div class="mt-4 text-center">
+                                <button id="admin-view-all-btn" class="text-primary hover:text-primary/80 font-medium transition-colors">
+                                    查看全部数据 <i class="fa fa-angle-right ml-1"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- 全部数据展示区域 -->
+                        <div id="admin-all-data" class="hidden">
+                            <div class="flex justify-between items-center mb-4">
+                                <h4 class="font-medium text-gray-800">全部案卷数据</h4>
+                                <button id="admin-back-to-preview" class="text-gray-600 hover:text-primary font-medium transition-colors">
+                                    <i class="fa fa-angle-left mr-1"></i> 返回预览
+                                </button>
+                            </div>
+                            
+                            <!-- 搜索框 -->
+                            <div class="relative mb-4">
+                                <input type="text" id="admin-data-search" placeholder="搜索档号或案卷题名..." 
+                                    class="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary/30 focus:border-primary outline-none transition-all">
+                                <i class="fa fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                            </div>
+                            
+                            <div class="overflow-x-auto">
+                                <table class="min-w-full border-collapse table-fixed-layout">
+                                    <thead>
+                                        <tr class="bg-gray-50">
+                                            <th class="w-16 px-4 py-3 text-left text-sm font-semibold text-gray-600 border-b">序号</th>
+                                            <th class="w-32 px-4 py-3 text-left text-sm font-semibold text-gray-600 border-b">档号</th>
+                                            <th class="flex-1 px-4 py-3 text-left text-sm font-semibold text-gray-600 border-b">案卷题名</th>
+                                            <th class="w-24 px-4 py-3 text-left text-sm font-semibold text-gray-600 border-b">状态</th>
+                                            <th class="w-32 px-4 py-3 text-left text-sm font-semibold text-gray-600 border-b">操作</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="admin-all-data-body">
+                                        <!-- 全部数据将通过JS动态生成 -->
+                                    </tbody>
+                                </table>
+                            </div>
+                            
+                            <!-- 全部数据分页控件 -->
+                            <div id="admin-data-pagination" class="flex justify-between items-center mt-6">
+                                <button id="admin-data-prev-page" class="px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-50 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center">
+                                    <i class="fa fa-chevron-left mr-2 text-sm"></i>
+                                    上一页
+                                </button>
+                                
+                                <div class="text-sm text-gray-600">
+                                    第 <span id="admin-data-current-page" class="font-medium text-primary">1</span> 页 / 共 <span id="admin-data-total-pages" class="font-medium text-primary">0</span> 页
+                                </div>
+                                
+                                <button id="admin-data-next-page" class="px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-50 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center">
+                                    下一页
+                                    <i class="fa fa-chevron-right ml-2 text-sm"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 专家管理面板 -->
+                    <div id="admin-experts-panel" class="bg-white rounded-xl p-6 card-shadow hidden">
+                        <div class="flex justify-between items-center mb-6">
+                            <h3 class="font-semibold text-gray-800 flex items-center">
+                                <i class="fa fa-users text-primary mr-2"></i> 专家管理
+                            </h3>
+                            <button id="add-expert-btn" class="bg-success hover:bg-success/90 text-white font-medium py-2 px-4 rounded-lg transition-all flex items-center">
+                                <i class="fa fa-plus mr-2"></i> 添加专家
+                            </button>
+                        </div>
+                        
+                        <!-- 专家列表 -->
+                        <div id="experts-list" class="space-y-4">
+                            <!-- 专家列表将通过JS动态生成 -->
+                            <div class="text-center py-10 text-gray-500">
+                                <i class="fa fa-user-o text-4xl mb-3"></i>
+                                <p>暂无专家信息，请添加专家账号</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 系统设置面板 -->
+                    <div id="admin-settings-panel" class="bg-white rounded-xl p-6 card-shadow hidden">
+                        <h3 class="font-semibold text-gray-800 mb-6 flex items-center">
+                            <i class="fa fa-cog text-primary mr-2"></i> 系统设置
+                        </h3>
+                        
+                        <div class="space-y-6">
+                            <div>
+                                <h4 class="font-medium text-gray-700 mb-3">配合检查人员账号</h4>
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">用户名</label>
+                                        <input type="text" id="staff-username" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all outline-none" placeholder="配合检查人员用户名">
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">密码</label>
+                                        <input type="text" id="staff-password" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all outline-none" placeholder="配合检查人员密码">
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="pt-4 border-t border-gray-100">
+                                <button id="save-settings-btn" class="bg-primary hover:bg-primary/90 text-white font-medium py-2.5 px-6 rounded-lg transition-all flex items-center">
+                                    <i class="fa fa-save mr-2"></i> 保存设置
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+        
+        <!-- 专家界面 -->
+        <section id="expert-section" class="w-full max-w-7xl animate-slide-up hidden">
+            <!-- 欢迎信息和说明 -->
+            <div class="bg-white rounded-xl p-6 card-shadow mb-6">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div>
+                        <h2 class="text-xl font-bold text-gray-800 flex items-center">
+                            <i class="fa fa-user-circle text-primary mr-2"></i> 欢迎回来，<span id="expert-welcome-name">专家</span>
+                        </h2>
+                        <p class="text-gray-600 mt-1">请从下方列表中选择您需要调阅的案卷</p>
+                    </div>
+                    <div class="bg-primary/5 p-3 rounded-lg border border-primary/10">
+                        <p class="text-sm text-gray-700"><i class="fa fa-info-circle text-primary mr-1"></i> 选卷完成后，请点击"提交选卷"按钮确认您的选择</p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 统计卡片 -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                <div class="bg-white rounded-xl p-5 card-shadow card-hover">
+                    <div class="flex items-center">
+                        <div class="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mr-4">
+                            <i class="fa fa-file-text-o text-primary text-xl"></i>
+                        </div>
+                        <div>
+                            <p class="text-sm text-gray-500">案卷总数</p>
+                            <p id="expert-stats-total" class="text-2xl font-bold text-gray-800">0</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="bg-white rounded-xl p-5 card-shadow card-hover">
+                    <div class="flex items-center">
+                        <div class="w-12 h-12 rounded-full bg-success/10 flex items-center justify-center mr-4">
+                            <i class="fa fa-check-square-o text-success text-xl"></i>
+                        </div>
+                        <div>
+                            <p class="text-sm text-gray-500">已选案卷</p>
+                            <p id="expert-stats-selected" class="text-2xl font-bold text-gray-800">0</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="bg-white rounded-xl p-5 card-shadow card-hover">
+                    <div class="flex items-center">
+                        <div class="w-12 h-12 rounded-full bg-warning/10 flex items-center justify-center mr-4">
+                            <i class="fa fa-clock-o text-warning text-xl"></i>
+                        </div>
+                        <div>
+                            <p class="text-sm text-gray-500">已调阅案卷</p>
+                            <p id="expert-stats-viewed" class="text-2xl font-bold text-gray-800">0</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 主内容卡片 -->
+            <div class="bg-white rounded-xl p-6 card-shadow">
+                <div class="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
+                    <h2 class="text-xl font-semibold flex items-center">
+                        <i class="fa fa-list-alt text-primary mr-2"></i> 案卷目录
+                    </h2>
+                    
+                    <div class="flex flex-col sm:flex-row items-center gap-4">
+                        <!-- 搜索框 -->
+                        <div class="relative w-full sm:w-64">
+                            <input type="text" id="expert-search-input" placeholder="搜索案卷题名..." 
+                                class="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary/30 focus:border-primary outline-none transition-all">
+                            <i class="fa fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                        </div>
+                        
+                        <!-- 已选数量 -->
+                        <div class="text-sm bg-primary/10 text-primary px-3 py-2 rounded-lg">
+                            已选: <span id="selected-count">0</span>
+                        </div>
+                        
+                        <!-- 提交按钮 -->
+                        <button id="submit-selection-btn" class="bg-success hover:bg-success/90 text-white font-medium py-2 px-6 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center" disabled>
+                            <i class="fa fa-check mr-2"></i> 提交选卷
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- 数据统计 -->
+                <div class="mb-4 text-sm text-gray-500">
+                    共 <span id="expert-total-records" class="font-medium text-primary">0</span> 条记录
+                </div>
+                
+                <!-- 表格内容 -->
+                <div class="overflow-x-auto">
+                    <table class="min-w-full border-collapse table-fixed-layout">
+                        <thead>
+                            <tr class="bg-gray-50">
+                                <th class="w-16 px-4 py-3 text-left text-sm font-semibold text-gray-600 border-b">选择</th>
+                                <th class="w-16 px-4 py-3 text-left text-sm font-semibold text-gray-600 border-b">序号</th>
+                                <th class="w-32 px-4 py-3 text-left text-sm font-semibold text-gray-600 border-b">档号</th>
+                                <th class="flex-1 px-4 py-3 text-left text-sm font-semibold text-gray-600 border-b">案卷题名</th>
+                                <th class="w-24 px-4 py-3 text-left text-sm font-semibold text-gray-600 border-b">状态</th>
+                            </tr>
+                        </thead>
+                        <tbody id="expert-table-body">
+                            <!-- 表格内容将通过JS动态生成 -->
+                        </tbody>
+                    </table>
+                </div>
+                
+                <!-- 空状态 -->
+                <div id="expert-empty-state" class="py-16 text-center hidden">
+                    <i class="fa fa-folder-open-o text-5xl text-gray-300 mb-4"></i>
+                    <p class="text-gray-500">暂无案卷数据，请联系管理员上传</p>
+                </div>
+                
+                <!-- 分页控件 -->
+                <div id="expert-pagination" class="flex justify-between items-center mt-6">
+                    <button id="expert-prev-page" class="px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-50 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center">
+                        <i class="fa fa-chevron-left mr-2 text-sm"></i>
+                        上一页
+                    </button>
+                    
+                    <div class="text-sm text-gray-600">
+                        第 <span id="expert-current-page" class="font-medium text-primary">1</span> 页 / 共 <span id="expert-total-pages" class="font-medium text-primary">0</span> 页
+                    </div>
+                    
+                    <button id="expert-next-page" class="px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-50 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center">
+                        下一页
+                        <i class="fa fa-chevron-right ml-2 text-sm"></i>
+                    </button>
+                </div>
+            </div>
+        </section>
+        
+        <!-- 配合检查人员界面 -->
+        <section id="staff-section" class="w-full max-w-7xl animate-slide-up hidden">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- 左侧：案卷目录 -->
+                <div class="lg:col-span-2">
+                    <div class="bg-white rounded-xl p-6 card-shadow h-full">
+                        <h2 class="text-xl font-semibold mb-6 flex items-center">
+                            <i class="fa fa-list-alt text-primary mr-2"></i> 案卷目录
+                        </h2>
+                        
+                        <!-- 搜索框 -->
+                        <div class="relative mb-6">
+                            <input type="text" id="staff-search-input" placeholder="搜索案卷题名或档号..." 
+                                class="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary/30 focus:border-primary outline-none transition-all">
+                            <i class="fa fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                        </div>
+                        
+                        <!-- 表格内容 -->
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full border-collapse table-fixed-layout">
+                                <thead>
+                                    <tr class="bg-gray-50">
+                                        <th class="w-16 px-4 py-3 text-left text-sm font-semibold text-gray-600 border-b">序号</th>
+                                        <th class="w-32 px-4 py-3 text-left text-sm font-semibold text-gray-600 border-b">档号</th>
+                                        <th class="flex-1 px-4 py-3 text-left text-sm font-semibold text-gray-600 border-b">案卷题名</th>
+                                        <th class="w-24 px-4 py-3 text-left text-sm font-semibold text-gray-600 border-b">状态</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="staff-table-body">
+                                    <!-- 表格内容将通过JS动态生成 -->
+                                </tbody>
+                            </table>
+                        </div>
+                        
+                        <!-- 空状态 -->
+                        <div id="staff-empty-state" class="py-16 text-center hidden">
+                            <i class="fa fa-folder-open-o text-5xl text-gray-300 mb-4"></i>
+                            <p class="text-gray-500">暂无案卷数据</p>
+                        </div>
+                        
+                        <!-- 分页控件 -->
+                        <div id="staff-pagination" class="flex justify-between items-center mt-6">
+                            <button id="staff-prev-page" class="px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-50 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center">
+                                <i class="fa fa-chevron-left mr-2 text-sm"></i>
+                                上一页
+                            </button>
+                            
+                            <div class="text-sm text-gray-600">
+                                第 <span id="staff-current-page" class="font-medium text-primary">1</span> 页 / 共 <span id="staff-total-pages" class="font-medium text-primary">0</span> 页
+                            </div>
+                            
+                            <button id="staff-next-page" class="px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-50 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center">
+                                下一页
+                                <i class="fa fa-chevron-right ml-2 text-sm"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 右侧：调阅通知 -->
+                <div class="lg:col-span-1">
+                    <div class="bg-white rounded-xl p-6 card-shadow h-full">
+                        <div class="flex justify-between items-center mb-6">
+                            <h2 class="text-xl font-semibold flex items-center">
+                                <i class="fa fa-bell text-primary mr-2"></i> 调阅通知
+                            </h2>
+                            <span id="notification-count" class="bg-danger text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">0</span>
+                        </div>
+                        
+                        <!-- 通知列表 -->
+                        <div id="notifications-list" class="space-y-4 max-h-[calc(100vh-320px)] overflow-y-auto pr-2">
+                            <!-- 通知内容将通过JS动态生成 -->
+                            <div class="text-center py-10 text-gray-500">
+                                <i class="fa fa-bell-o text-4xl mb-3"></i>
+                                <p>暂无调阅通知</p>
+                            </div>
+                        </div>
+                        
+                        <!-- 清空通知按钮 -->
+                        <div class="mt-6 pt-4 border-t border-gray-100">
+                            <button id="clear-notifications-btn" class="w-full text-gray-600 hover:text-danger font-medium py-2 border border-gray-200 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+                                <i class="fa fa-trash-o mr-2"></i> 清空已处理通知
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+    
+    <!-- 添加专家模态框 -->
+    <div id="add-expert-modal" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center hidden">
+        <div class="bg-white rounded-xl p-6 max-w-md w-full mx-4 animate-slide-up">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-semibold text-gray-800">添加专家账号</h3>
+                <button id="close-modal-btn" class="text-gray-400 hover:text-gray-600">
+                    <i class="fa fa-times"></i>
+                </button>
+            </div>
+            
+            <form id="add-expert-form">
+                <div class="mb-4">
+                    <label for="expert-username" class="block text-sm font-medium text-gray-700 mb-1">专家用户名</label>
+                    <input type="text" id="expert-username" required
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all outline-none"
+                        placeholder="设置专家登录用户名">
+                </div>
+                
+                <div class="mb-4">
+                    <label for="expert-password" class="block text-sm font-medium text-gray-700 mb-1">专家密码</label>
+                    <input type="text" id="expert-password" required
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all outline-none"
+                        placeholder="设置专家登录密码">
+                </div>
+                
+                <div class="mt-6">
+                    <button type="submit" class="w-full bg-primary hover:bg-primary/90 text-white font-medium py-2.5 px-4 rounded-lg transition-all">
+                        <i class="fa fa-plus mr-2"></i> 添加专家
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- 通知提示 -->
+    <div id="toast" class="fixed bottom-6 right-6 px-6 py-3 rounded-lg shadow-lg transform translate-y-20 opacity-0 transition-all duration-300 z-50 flex items-center">
+        <i id="toast-icon" class="mr-2 text-xl"></i>
+        <span id="toast-message"></span>
+    </div>
+    
+    <script>
+        // 全局状态管理
+        const state = {
+            currentUser: null, // 当前登录用户 { username, role, realName }
+            allRecords: [],    // 所有案卷数据
+            selectedRecords: [], // 专家选中的案卷
+            experts: [],       // 专家列表
+            staffAccount: {    // 配合检查人员账号
+                username: '',
+                password: ''
+            },
+            notifications: [], // 调阅通知
+            currentPage: 1,
+            pageSize: 10,      // 每页显示10条数据
+            adminDataPage: 1,  // 管理员全部数据分页
+            adminDataSearchTerm: '' // 管理员数据搜索词
+        };
+        
+        // 示例用户数据 (实际应用中应从服务器获取)
+        const demoUsers = [
+            { username: 'admin', password: 'admin123', role: 'admin', realName: '管理员' },
+            { username: 'staff', password: 'staff123', role: 'staff', realName: '档案管理员' },
+            { username: 'expert1', password: 'expert1', role: 'expert' },
+            { username: 'expert2', password: 'expert2', role: 'expert' },
+            { username: 'expert3', password: 'expert3', role: 'expert' }
+        ];
+        
+        // DOM元素引用
+        const elements = {
+            // 公共元素
+            mainHeader: document.getElementById('main-header'),
+            usernameDisplay: document.getElementById('username-display'),
+            userRoleBadge: document.getElementById('user-role-badge'),
+            logoutBtn: document.getElementById('logout-btn'),
+            notificationIconContainer: document.getElementById('notification-icon-container'),
+            notificationBadge: document.getElementById('notification-badge'),
+            toast: document.getElementById('toast'),
+            toastIcon: document.getElementById('toast-icon'),
+            toastMessage: document.getElementById('toast-message'),
+            
+            // 登录界面
+            loginSection: document.getElementById('login-section'),
+            loginForm: document.getElementById('login-form'),
+            usernameInput: document.getElementById('username'),
+            passwordInput: document.getElementById('password'),
+            loginError: document.getElementById('login-error'),
+            
+            // 专家信息填写界面
+            expertInfoSection: document.getElementById('expert-info-section'),
+            expertInfoForm: document.getElementById('expert-info-form'),
+            expertNameInput: document.getElementById('expert-name'),
+            
+            // 管理员界面
+            adminSection: document.getElementById('admin-section'),
+            adminDashboardBtn: document.getElementById('admin-dashboard-btn'),
+            adminExpertsBtn: document.getElementById('admin-experts-btn'),
+            adminSettingsBtn: document.getElementById('admin-settings-btn'),
+            adminTotalRecords: document.getElementById('admin-total-records'),
+            adminTotalExperts: document.getElementById('admin-total-experts'),
+            adminActiveRecords: document.getElementById('admin-active-records'),
+            adminUploadArea: document.getElementById('admin-upload-area'),
+            adminFileInput: document.getElementById('admin-file-input'),
+            adminUploadInfo: document.getElementById('admin-upload-info'),
+            adminFileName: document.getElementById('admin-file-name'),
+            adminFileSize: document.getElementById('admin-file-size'),
+            adminRemoveFile: document.getElementById('admin-remove-file'),
+            adminUploadBtn: document.getElementById('admin-upload-btn'),
+            adminUploadProgress: document.getElementById('admin-upload-progress'),
+            adminProgressPercentage: document.getElementById('admin-progress-percentage'),
+            adminProgressBar: document.getElementById('admin-progress-bar'),
+            adminDataPreview: document.getElementById('admin-data-preview'),
+            adminPreviewBody: document.getElementById('admin-preview-body'),
+            adminViewAllBtn: document.getElementById('admin-view-all-btn'),
+            
+            // 管理员全部数据展示相关元素
+            adminAllData: document.getElementById('admin-all-data'),
+            adminBackToPreview: document.getElementById('admin-back-to-preview'),
+            adminDataSearch: document.getElementById('admin-data-search'),
+            adminAllDataBody: document.getElementById('admin-all-data-body'),
+            adminDataPagination: document.getElementById('admin-data-pagination'),
+            adminDataPrevPage: document.getElementById('admin-data-prev-page'),
+            adminDataCurrentPage: document.getElementById('admin-data-current-page'),
+            adminDataTotalPages: document.getElementById('admin-data-total-pages'),
+            adminDataNextPage: document.getElementById('admin-data-next-page'),
+            
+            // 管理员专家管理面板
+            adminExpertsPanel: document.getElementById('admin-experts-panel'),
+            expertsList: document.getElementById('experts-list'),
+            addExpertBtn: document.getElementById('add-expert-btn'),
+            
+            // 管理员系统设置面板
+            adminSettingsPanel: document.getElementById('admin-settings-panel'),
+            staffUsername: document.getElementById('staff-username'),
+            staffPassword: document.getElementById('staff-password'),
+            saveSettingsBtn: document.getElementById('save-settings-btn'),
+            
+            // 添加专家模态框
+            addExpertModal: document.getElementById('add-expert-modal'),
+            closeModalBtn: document.getElementById('close-modal-btn'),
+            addExpertForm: document.getElementById('add-expert-form'),
+            expertUsernameInput: document.getElementById('expert-username'),
+            expertPasswordInput: document.getElementById('expert-password'),
+            
+            // 专家界面
+            expertSection: document.getElementById('expert-section'),
+            expertWelcomeName: document.getElementById('expert-welcome-name'),
+            expertStatsTotal: document.getElementById('expert-stats-total'),
+            expertStatsSelected: document.getElementById('expert-stats-selected'),
+            expertStatsViewed: document.getElementById('expert-stats-viewed'),
+            expertSearchInput: document.getElementById('expert-search-input'),
+            selectedCount: document.getElementById('selected-count'),
+            submitSelectionBtn: document.getElementById('submit-selection-btn'),
+            expertTotalRecords: document.getElementById('expert-total-records'),
+            expertTableBody: document.getElementById('expert-table-body'),
+            expertEmptyState: document.getElementById('expert-empty-state'),
+            expertPagination: document.getElementById('expert-pagination'),
+            expertPrevPage: document.getElementById('expert-prev-page'),
+            expertCurrentPage: document.getElementById('expert-current-page'),
+            expertTotalPages: document.getElementById('expert-total-pages'),
+            expertNextPage: document.getElementById('expert-next-page'),
+            
+            // 配合检查人员界面
+            staffSection: document.getElementById('staff-section'),
+            staffSearchInput: document.getElementById('staff-search-input'),
+            staffTableBody: document.getElementById('staff-table-body'),
+            staffEmptyState: document.getElementById('staff-empty-state'),
+            staffPagination: document.getElementById('staff-pagination'),
+            staffPrevPage: document.getElementById('staff-prev-page'),
+            staffCurrentPage: document.getElementById('staff-current-page'),
+            staffTotalPages: document.getElementById('staff-total-pages'),
+            staffNextPage: document.getElementById('staff-next-page'),
+            notificationsList: document.getElementById('notifications-list'),
+            notificationCount: document.getElementById('notification-count'),
+            clearNotificationsBtn: document.getElementById('clear-notifications-btn')
+        };
+        
+        // 工具函数
+        const utils = {
+            // 显示通知提示
+            showToast: (message, type = 'success') => {
+                elements.toastMessage.textContent = message;
+                
+                if (type === 'success') {
+                    elements.toast.className = 'fixed bottom-6 right-6 px-6 py-3 bg-success text-white rounded-lg shadow-lg transform translate-y-0 opacity-100 transition-all duration-300 z-50 flex items-center';
+                    elements.toastIcon.className = 'fa fa-check-circle mr-2 text-xl';
+                } else if (type === 'error') {
+                    elements.toast.className = 'fixed bottom-6 right-6 px-6 py-3 bg-danger text-white rounded-lg shadow-lg transform translate-y-0 opacity-100 transition-all duration-300 z-50 flex items-center';
+                    elements.toastIcon.className = 'fa fa-exclamation-circle mr-2 text-xl';
+                } else if (type === 'warning') {
+                    elements.toast.className = 'fixed bottom-6 right-6 px-6 py-3 bg-warning text-white rounded-lg shadow-lg transform translate-y-0 opacity-100 transition-all duration-300 z-50 flex items-center';
+                    elements.toastIcon.className = 'fa fa-exclamation-triangle mr-2 text-xl';
+                } else if (type === 'info') {
+                    elements.toast.className = 'fixed bottom-6 right-6 px-6 py-3 bg-primary text-white rounded-lg shadow-lg transform translate-y-0 opacity-100 transition-all duration-300 z-50 flex items-center';
+                    elements.toastIcon.className = 'fa fa-info-circle mr-2 text-xl';
+                }
+                
+                setTimeout(() => {
+                    elements.toast.className = 'fixed bottom-6 right-6 px-6 py-3 rounded-lg shadow-lg transform translate-y-20 opacity-0 transition-all duration-300 z-50 flex items-center';
+                }, 3000);
+            },
+            
+            // 格式化文件大小
+            formatFileSize: (bytes) => {
+                if (bytes === 0) return '0 Bytes';
+                const k = 1024;
+                const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+                const i = Math.floor(Math.log(bytes) / Math.log(k));
+                return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+            },
+            
+            // 获取状态标签样式
+            getStatusBadge: (status) => {
+                switch(status) {
+                    case '未选':
+                        return '<span class="px-2 py-1 text-xs rounded-full bg-gray-100 text-gray-700">未选</span>';
+                    case '已选':
+                        return '<span class="px-2 py-1 text-xs rounded-full bg-primary/10 text-primary">已选</span>';
+                    case '已调阅':
+                        return '<span class="px-2 py-1 text-xs rounded-full bg-success/10 text-success">已调阅</span>';
+                    default:
+                        return '<span class="px-2 py-1 text-xs rounded-full bg-gray-100 text-gray-700">未选</span>';
+                }
+            }
+        };
+        
+        // 初始化事件监听
+        function initEventListeners() {
+            // 登录表单提交
+            elements.loginForm.addEventListener('submit', handleLogin);
+            
+            // 专家信息表单提交
+            elements.expertInfoForm.addEventListener('submit', handleExpertInfoSubmit);
+            
+            // 管理员面板切换
+            elements.adminDashboardBtn.addEventListener('click', () => switchAdminPanel('dashboard'));
+            elements.adminExpertsBtn.addEventListener('click', () => switchAdminPanel('experts'));
+            elements.adminSettingsBtn.addEventListener('click', () => switchAdminPanel('settings'));
+            
+            // 管理员文件上传
+            elements.adminUploadArea.addEventListener('click', () => elements.adminFileInput.click());
+            elements.adminFileInput.addEventListener('change', handleFileSelection);
+            elements.adminRemoveFile.addEventListener('click', handleRemoveFile);
+            elements.adminUploadBtn.addEventListener('click', handleFileUpload);
+            
+            // 管理员查看全部数据
+            elements.adminViewAllBtn.addEventListener('click', showAllAdminData);
+            elements.adminBackToPreview.addEventListener('click', showDataPreview);
+            
+            // 管理员全部数据分页和搜索
+            elements.adminDataPrevPage.addEventListener('click', () => changeAdminDataPage(-1));
+            elements.adminDataNextPage.addEventListener('click', () => changeAdminDataPage(1));
+            elements.adminDataSearch.addEventListener('input', handleAdminDataSearch);
+            
+            // 管理员添加专家
+            elements.addExpertBtn.addEventListener('click', () => elements.addExpertModal.classList.remove('hidden'));
+            elements.closeModalBtn.addEventListener('click', () => elements.addExpertModal.classList.add('hidden'));
+            elements.addExpertForm.addEventListener('submit', handleAddExpert);
+            
+            // 管理员保存设置
+            elements.saveSettingsBtn.addEventListener('click', handleSaveSettings);
+            
+            // 专家搜索
+            elements.expertSearchInput.addEventListener('input', () => {
+                state.currentPage = 1;
+                renderExpertTable();
+            });
+            
+            // 专家分页
+            elements.expertPrevPage.addEventListener('click', () => changeExpertPage(-1));
+            elements.expertNextPage.addEventListener('click', () => changeExpertPage(1));
+            
+            // 专家提交选卷
+            elements.submitSelectionBtn.addEventListener('click', handleSubmitSelection);
+            
+            // 配合检查人员搜索
+            elements.staffSearchInput.addEventListener('input', () => {
+                state.currentPage = 1;
+                renderStaffTable();
+            });
+            
+            // 配合检查人员分页
+            elements.staffPrevPage.addEventListener('click', () => changeStaffPage(-1));
+            elements.staffNextPage.addEventListener('click', () => changeStaffPage(1));
+            
+            // 配合检查人员清空通知
+            elements.clearNotificationsBtn.addEventListener('click', handleClearNotifications);
+            
+            // 登出
+            elements.logoutBtn.addEventListener('click', handleLogout);
+            
+            // 拖放上传
+            elements.adminUploadArea.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                elements.adminUploadArea.classList.add('border-primary');
+            });
+            
+            elements.adminUploadArea.addEventListener('dragleave', () => {
+                elements.adminUploadArea.classList.remove('border-primary');
+            });
+            
+            elements.adminUploadArea.addEventListener('drop', (e) => {
+                e.preventDefault();
+                elements.adminUploadArea.classList.remove('border-primary');
+                
+                if (e.dataTransfer.files.length) {
+                    elements.adminFileInput.files = e.dataTransfer.files;
+                    handleFileSelection();
+                }
+            });
+        }
+        
+        // 登录处理
+        function handleLogin(e) {
+            e.preventDefault();
+            
+            const username = elements.usernameInput.value.trim();
+            const password = elements.passwordInput.value.trim();
+            
+            // 在实际应用中，这里应该发送请求到服务器验证
+            const user = demoUsers.find(u => u.username === username && u.password === password);
+            
+            if (user) {
+                state.currentUser = { ...user };
+                elements.loginError.classList.add('hidden');
+                
+                // 显示头部导航
+                elements.mainHeader.classList.remove('hidden');
+                elements.usernameDisplay.textContent = user.realName || user.username;
+                elements.usernameDisplay.classList.remove('hidden');
+                elements.logoutBtn.classList.remove('hidden');
+                
+                // 设置角色标签
+                elements.userRoleBadge.textContent = 
+                    user.role === 'admin' ? '管理员' : 
+                    user.role === 'staff' ? '配合检查人员' : '专家';
+                elements.userRoleBadge.classList.remove('hidden');
+                
+                // 根据角色显示不同界面
+                if (user.role === 'admin') {
+                    showAdminInterface();
+                } else if (user.role === 'staff') {
+                    elements.notificationIconContainer.classList.remove('hidden');
+                    showStaffInterface();
+                } else if (user.role === 'expert') {
+                    // 如果是专家且没有真实姓名，需要完善信息
+                    if (!user.realName) {
+                        elements.loginSection.classList.add('hidden');
+                        elements.expertInfoSection.classList.remove('hidden');
+                    } else {
+                        showExpertInterface();
+                    }
+                }
+            } else {
+                elements.loginError.classList.remove('hidden');
+            }
+        }
+        
+        // 专家信息提交
+        function handleExpertInfoSubmit(e) {
+            e.preventDefault();
+            
+            const name = elements.expertNameInput.value.trim();
+            if (name) {
+                state.currentUser.realName = name;
+                // 更新演示用户数据
+                const userIndex = demoUsers.findIndex(u => u.username === state.currentUser.username);
+                if (userIndex !== -1) {
+                    demoUsers[userIndex].realName = name;
+                }
+                showExpertInterface();
+            }
+        }
+        
+        // 切换管理员面板
+        function switchAdminPanel(panel) {
+            // 重置按钮样式
+            elements.adminDashboardBtn.className = 'w-full text-left px-4 py-3 rounded-lg hover:bg-gray-100 text-gray-700 transition-colors flex items-center';
+            elements.adminExpertsBtn.className = 'w-full text-left px-4 py-3 rounded-lg hover:bg-gray-100 text-gray-700 transition-colors flex items-center';
+            elements.adminSettingsBtn.className = 'w-full text-left px-4 py-3 rounded-lg hover:bg-gray-100 text-gray-700 transition-colors flex items-center';
+            
+            // 隐藏所有面板
+            elements.adminDashboardPanel.classList.add('hidden');
+            elements.adminExpertsPanel.classList.add('hidden');
+            elements.adminSettingsPanel.classList.add('hidden');
+            
+            // 显示选中的面板并设置按钮样式
+            if (panel === 'dashboard') {
+                elements.adminDashboardBtn.className = 'w-full text-left px-4 py-3 rounded-lg bg-primary/10 text-primary font-medium flex items-center';
+                elements.adminDashboardPanel.classList.remove('hidden');
+            } else if (panel === 'experts') {
+                elements.adminExpertsBtn.className = 'w-full text-left px-4 py-3 rounded-lg bg-primary/10 text-primary font-medium flex items-center';
+                elements.adminExpertsPanel.classList.remove('hidden');
+                renderExpertsList();
+            } else if (panel === 'settings') {
+                elements.adminSettingsBtn.className = 'w-full text-left px-4 py-3 rounded-lg bg-primary/10 text-primary font-medium flex items-center';
+                elements.adminSettingsPanel.classList.remove('hidden');
+                // 加载设置
+                elements.staffUsername.value = state.staffAccount.username;
+                elements.staffPassword.value = state.staffAccount.password;
+            }
+        }
+        
+        // 处理文件选择
+        function handleFileSelection() {
+            const file = elements.adminFileInput.files[0];
+            if (file) {
+                elements.adminFileName.textContent = file.name;
+                elements.adminFileSize.textContent = utils.formatFileSize(file.size);
+                elements.adminUploadInfo.classList.remove('hidden');
+                elements.adminUploadBtn.disabled = false;
+            }
+        }
+        
+        // 移除选中的文件
+        function handleRemoveFile() {
+            elements.adminFileInput.value = '';
+            elements.adminUploadInfo.classList.add('hidden');
+            elements.adminUploadBtn.disabled = true;
+        }
+        
+        // 处理文件上传
+        function handleFileUpload() {
+            const file = elements.adminFileInput.files[0];
+            if (!file) return;
+            
+            elements.adminUploadBtn.disabled = true;
+            elements.adminUploadProgress.classList.remove('hidden');
+            
+            // 模拟上传进度
+            let progress = 0;
+            const interval = setInterval(() => {
+                progress += 5;
+                elements.adminProgressPercentage.textContent = `${progress}%`;
+                elements.adminProgressBar.style.width = `${progress}%`;
+                
+                if (progress >= 100) {
+                    clearInterval(interval);
+                    
+                    // 读取Excel文件
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        try {
+                            const data = new Uint8Array(e.target.result);
+                            const workbook = XLSX.read(data, { type: 'array' });
+                            const firstSheetName = workbook.SheetNames[0];
+                            const worksheet = workbook.Sheets[firstSheetName];
+                            const jsonData = XLSX.utils.sheet_to_json(worksheet);
+                            
+                            // 处理数据，添加序号和状态
+                            state.allRecords = jsonData.map((item, index) => ({
+                                id: index + 1,
+                                档号: item.档号 || '',
+                                案卷题名: item.案卷题名 || '',
+                                status: '未选'
+                            }));
+                            
+                            // 更新统计信息
+                            elements.adminTotalRecords.textContent = state.allRecords.length;
+                            
+                            // 显示数据预览
+                            renderDataPreview();
+                            elements.adminDataPreview.classList.remove('hidden');
+                            
+                            utils.showToast('数据导入成功');
+                        } catch (error) {
+                            console.error('Excel解析错误:', error);
+                            utils.showToast('文件解析错误，请检查文件格式', 'error');
+                        } finally {
+                            elements.adminUploadProgress.classList.add('hidden');
+                            elements.adminProgressBar.style.width = '0%';
+                            elements.adminProgressPercentage.textContent = '0%';
+                        }
+                    };
+                    reader.readAsArrayBuffer(file);
+                }
+            }, 100);
+        }
+        
+        // 渲染数据预览
+        function renderDataPreview() {
+            elements.adminPreviewBody.innerHTML = '';
+            
+            // 只显示前5条数据作为预览
+            const previewData = state.allRecords.slice(0, 5);
+            
+            previewData.forEach((record) => {
+                const row = document.createElement('tr');
+                row.className = 'hover:bg-gray-50 transition-colors';
+                row.innerHTML = `
+                    <td class="w-16 px-4 py-3 border-b text-sm text-gray-600 cell-auto-wrap">${record.id}</td>
+                    <td class="w-32 px-4 py-3 border-b text-sm text-gray-800 cell-auto-wrap">${record.档号}</td>
+                    <td class="flex-1 px-4 py-3 border-b text-sm text-gray-800 cell-auto-wrap">${record.案卷题名}</td>
+                    <td class="w-24 px-4 py-3 border-b text-sm cell-auto-wrap">${utils.getStatusBadge(record.status)}</td>
+                `;
+                elements.adminPreviewBody.appendChild(row);
+            });
+        }
+        
+        // 显示全部数据
+        function showAllAdminData() {
+            elements.adminDataPreview.classList.add('hidden');
+            elements.adminAllData.classList.remove('hidden');
+            state.adminDataPage = 1;
+            state.adminDataSearchTerm = '';
+            elements.adminDataSearch.value = '';
+            renderAllAdminData();
+        }
+        
+        // 显示数据预览
+        function showDataPreview() {
+            elements.adminAllData.classList.add('hidden');
+            elements.adminDataPreview.classList.remove('hidden');
+        }
+        
+        // 处理管理员数据搜索
+        function handleAdminDataSearch() {
+            state.adminDataSearchTerm = elements.adminDataSearch.value.trim().toLowerCase();
+            state.adminDataPage = 1;
+            renderAllAdminData();
+        }
+        
+        // 改变管理员数据页码
+        function changeAdminDataPage(direction) {
+            const filteredData = getFilteredAdminData();
+            const totalPages = Math.ceil(filteredData.length / state.pageSize);
+            
+            state.adminDataPage += direction;
+            
+            if (state.adminDataPage < 1) state.adminDataPage = 1;
+            if (state.adminDataPage > totalPages) state.adminDataPage = totalPages;
+            
+            renderAllAdminData();
+        }
+        
+        // 获取过滤后的管理员数据
+        function getFilteredAdminData() {
+            if (!state.adminDataSearchTerm) {
+                return state.allRecords;
+            }
+            
+            return state.allRecords.filter(record => 
+                record.档号.toLowerCase().includes(state.adminDataSearchTerm) || 
+                record.案卷题名.toLowerCase().includes(state.adminDataSearchTerm)
+            );
+        }
+        
+        // 渲染全部管理员数据
+        function renderAllAdminData() {
+            const filteredData = getFilteredAdminData();
+            const totalPages = Math.ceil(filteredData.length / state.pageSize);
+            const startIndex = (state.adminDataPage - 1) * state.pageSize;
+            const endIndex = startIndex + state.pageSize;
+            const currentData = filteredData.slice(startIndex, endIndex);
+            
+            elements.adminAllDataBody.innerHTML = '';
+            
+            if (currentData.length === 0) {
+                const emptyRow = document.createElement('tr');
+                emptyRow.innerHTML = `
+                    <td colspan="5" class="px-4 py-10 text-center text-gray-500">
+                        <i class="fa fa-folder-open-o mr-2"></i> 没有找到匹配的数据
+                    </td>
+                `;
+                elements.adminAllDataBody.appendChild(emptyRow);
+            } else {
+                currentData.forEach((record) => {
+                    const row = document.createElement('tr');
+                    row.className = 'border-b hover:bg-gray-50 transition-colors';
+                    row.innerHTML = `
+                        <td class="w-16 px-4 py-3 text-sm text-gray-600 cell-auto-wrap">${record.id}</td>
+                        <td class="w-32 px-4 py-3 text-sm text-gray-800 cell-auto-wrap">${record.档号}</td>
+                        <td class="flex-1 px-4 py-3 text-sm text-gray-800 cell-auto-wrap">${record.案卷题名}</td>
+                        <td class="w-24 px-4 py-3 text-sm cell-auto-wrap">${utils.getStatusBadge(record.status)}</td>
+                        <td class="w-32 px-4 py-3 text-sm cell-auto-wrap">
+                            <button class="text-primary hover:text-primary/80 mr-3" onclick="handleResetRecordStatus(${record.id})">
+                                <i class="fa fa-refresh mr-1"></i> 重置
+                            </button>
+                        </td>
+                    `;
+                    elements.adminAllDataBody.appendChild(row);
+                });
+            }
+            
+            // 更新分页信息
+            elements.adminDataCurrentPage.textContent = state.adminDataPage;
+            elements.adminDataTotalPages.textContent = totalPages;
+            elements.adminDataPrevPage.disabled = state.adminDataPage <= 1;
+            elements.adminDataNextPage.disabled = state.adminDataPage >= totalPages;
+        }
+        
+        // 重置案卷状态
+        function handleResetRecordStatus(id) {
+            const record = state.allRecords.find(r => r.id === id);
+            if (record) {
+                record.status = '未选';
+                renderAllAdminData();
+                renderDataPreview();
+                utils.showToast('案卷状态已重置');
+            }
+        }
+        
+        // 处理添加专家
+        function handleAddExpert(e) {
+            e.preventDefault();
+            
+            const username = elements.expertUsernameInput.value.trim();
+            const password = elements.expertPasswordInput.value.trim();
+            
+            if (!username || !password) {
+                utils.showToast('请填写用户名和密码', 'warning');
+                return;
+            }
+            
+            // 检查用户名是否已存在
+            if (demoUsers.some(u => u.username === username) || 
+                state.experts.some(e => e.username === username)) {
+                utils.showToast('用户名已存在', 'error');
+                return;
+            }
+            
+            // 添加新专家
+            const newExpert = { username, password, role: 'expert' };
+            state.experts.push(newExpert);
+            demoUsers.push(newExpert);
+            
+            // 更新专家列表
+            renderExpertsList();
+            
+            // 关闭模态框并重置表单
+            elements.addExpertModal.classList.add('hidden');
+            elements.addExpertForm.reset();
+            
+            // 更新统计信息
+            elements.adminTotalExperts.textContent = state.experts.length;
+            
+            utils.showToast('专家添加成功');
+        }
+        
+        // 渲染专家列表
+        function renderExpertsList() {
+            if (state.experts.length === 0) {
+                elements.expertsList.innerHTML = `
+                    <div class="text-center py-10 text-gray-500">
+                        <i class="fa fa-user-o text-4xl mb-3"></i>
+                        <p>暂无专家信息，请添加专家账号</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            elements.expertsList.innerHTML = '';
+            state.experts.forEach((expert, index) => {
+                const expertCard = document.createElement('div');
+                expertCard.className = 'flex justify-between items-center p-4 border border-gray-100 rounded-lg hover:shadow-md transition-shadow';
+                expertCard.innerHTML = `
+                    <div>
+                        <div class="font-medium text-gray-800">${expert.username}</div>
+                        <div class="text-sm text-gray-500 mt-1">密码: ${expert.password}</div>
+                    </div>
+                    <button class="text-danger hover:text-danger/80 transition-colors" onclick="handleDeleteExpert(${index})">
+                        <i class="fa fa-trash-o"></i>
+                    </button>
+                `;
+                elements.expertsList.appendChild(expertCard);
+            });
+        }
+        
+        // 删除专家
+        function handleDeleteExpert(index) {
+            if (confirm('确定要删除这个专家账号吗？')) {
+                const deletedExpert = state.experts.splice(index, 1)[0];
+                // 从演示用户中删除
+                const demoIndex = demoUsers.findIndex(u => u.username === deletedExpert.username);
+                if (demoIndex !== -1) {
+                    demoUsers.splice(demoIndex, 1);
+                }
+                renderExpertsList();
+                elements.adminTotalExperts.textContent = state.experts.length;
+                utils.showToast('专家已删除');
+            }
+        }
+        
+        // 保存系统设置
+        function handleSaveSettings() {
+            state.staffAccount.username = elements.staffUsername.value.trim();
+            state.staffAccount.password = elements.staffPassword.value.trim();
+            
+            // 在实际应用中，这里应该将设置保存到服务器
+            utils.showToast('设置保存成功');
+        }
+        
+        // 显示管理员界面
+        function showAdminInterface() {
+            elements.loginSection.classList.add('hidden');
+            elements.expertInfoSection.classList.add('hidden');
+            elements.expertSection.classList.add('hidden');
+            elements.staffSection.classList.add('hidden');
+            elements.adminSection.classList.remove('hidden');
+            
+            // 默认显示数据管理面板
+            switchAdminPanel('dashboard');
+            
+            // 更新统计信息
+            elements.adminTotalRecords.textContent = state.allRecords.length;
+            elements.adminTotalExperts.textContent = state.experts.length;
+            
+            // 计算活跃案卷数量
+            const activeCount = state.allRecords.filter(r => r.status === '已选' || r.status === '已调阅').length;
+            elements.adminActiveRecords.textContent = activeCount;
+        }
+        
+        // 显示专家界面
+        function showExpertInterface() {
+            elements.loginSection.classList.add('hidden');
+            elements.expertInfoSection.classList.add('hidden');
+            elements.adminSection.classList.add('hidden');
+            elements.staffSection.classList.add('hidden');
+            elements.expertSection.classList.remove('hidden');
+            
+            // 显示欢迎信息
+            elements.expertWelcomeName.textContent = state.currentUser.realName || state.currentUser.username;
+            
+            // 重置选中状态和页码
+            state.selectedRecords = state.allRecords.filter(r => r.status === '已选' || r.status === '已调阅');
+            state.currentPage = 1;
+            
+            // 更新统计信息
+            const totalCount = state.allRecords.length;
+            const selectedCount = state.selectedRecords.length;
+            const viewedCount = state.allRecords.filter(r => r.status === '已调阅').length;
+            
+            elements.expertStatsTotal.textContent = totalCount;
+            elements.expertStatsSelected.textContent = selectedCount;
+            elements.expertStatsViewed.textContent = viewedCount;
+            
+            elements.expertTotalRecords.textContent = totalCount;
+            elements.selectedCount.textContent = selectedCount;
+            elements.submitSelectionBtn.disabled = selectedCount === 0;
+            
+            renderExpertTable();
+        }
+        
+        // 渲染专家表格
+        function renderExpertTable() {
+            // 处理搜索
+            const searchTerm = elements.expertSearchInput.value.trim().toLowerCase();
+            let filteredData = state.allRecords;
+            
+            if (searchTerm) {
+                filteredData = state.allRecords.filter(record => 
+                    record.案卷题名.toLowerCase().includes(searchTerm)
+                );
+            }
+            
+            // 处理分页
+            const totalPages = Math.ceil(filteredData.length / state.pageSize);
+            const startIndex = (state.currentPage - 1) * state.pageSize;
+            const endIndex = startIndex + state.pageSize;
+            const currentData = filteredData.slice(startIndex, endIndex);
+            
+            // 更新表格内容
+            elements.expertTableBody.innerHTML = '';
+            
+            if (currentData.length === 0) {
+                elements.expertEmptyState.classList.remove('hidden');
+                elements.expertPagination.classList.add('hidden');
+            } else {
+                elements.expertEmptyState.classList.add('hidden');
+                elements.expertPagination.classList.remove('hidden');
+                
+                currentData.forEach((record) => {
+                    const isSelected = state.selectedRecords.some(r => r.id === record.id);
+                    const row = document.createElement('tr');
+                    row.className = 'border-b hover:bg-gray-50 transition-colors';
+                    row.innerHTML = `
+                        <td class="w-16 px-4 py-3 cell-auto-wrap">
+                            <input type="checkbox" ${isSelected ? 'checked' : ''} 
+                                class="rounded text-primary focus:ring-primary"
+                                onchange="handleExpertSelection(${record.id}, this.checked)">
+                        </td>
+                        <td class="w-16 px-4 py-3 text-sm text-gray-600 cell-auto-wrap">${record.id}</td>
+                        <td class="w-32 px-4 py-3 text-sm text-gray-800 cell-auto-wrap">${record.档号}</td>
+                        <td class="flex-1 px-4 py-3 text-sm text-gray-800 cell-auto-wrap">${record.案卷题名}</td>
+                        <td class="w-24 px-4 py-3 text-sm cell-auto-wrap">${utils.getStatusBadge(record.status)}</td>
+                    `;
+                    elements.expertTableBody.appendChild(row);
+                });
+            }
+            
+            // 更新分页信息
+            elements.expertCurrentPage.textContent = state.currentPage;
+            elements.expertTotalPages.textContent = totalPages;
+            elements.expertPrevPage.disabled = state.currentPage <= 1;
+            elements.expertNextPage.disabled = state.currentPage >= totalPages;
+        }
+        
+        // 处理专家选择
+        function handleExpertSelection(recordId, isSelected) {
+            const record = state.allRecords.find(r => r.id === recordId);
+            if (!record) return;
+            
+            if (isSelected) {
+                // 添加到选中列表
+                if (!state.selectedRecords.some(r => r.id === recordId)) {
+                    state.selectedRecords.push(record);
+                    record.status = '已选';
+                }
+            } else {
+                // 从选中列表移除
+                const index = state.selectedRecords.findIndex(r => r.id === recordId);
+                if (index !== -1) {
+                    state.selectedRecords.splice(index, 1);
+                    record.status = '未选';
+                }
+            }
+            
+            // 更新选中数量和按钮状态
+            const selectedCount = state.selectedRecords.length;
+            elements.selectedCount.textContent = selectedCount;
+            elements.submitSelectionBtn.disabled = selectedCount === 0;
+            elements.expertStatsSelected.textContent = selectedCount;
+        }
+        
+        // 改变专家页面
+        function changeExpertPage(direction) {
+            const searchTerm = elements.expertSearchInput.value.trim().toLowerCase();
+            let filteredData = state.allRecords;
+            
+            if (searchTerm) {
+                filteredData = state.allRecords.filter(record => 
+                    record.案卷题名.toLowerCase().includes(searchTerm)
+                );
+            }
+            
+            const totalPages = Math.ceil(filteredData.length / state.pageSize);
+            
+            state.currentPage += direction;
+            
+            if (state.currentPage < 1) state.currentPage = 1;
+            if (state.currentPage > totalPages) state.currentPage = totalPages;
+            
+            renderExpertTable();
+        }
+        
+        // 提交选卷
+        function handleSubmitSelection() {
+            if (state.selectedRecords.length === 0) return;
+            
+            // 更新选中案卷状态为已调阅
+            state.selectedRecords.forEach(record => {
+                record.status = '已调阅';
+            });
+            
+            // 创建调阅通知
+            const notification = {
+                id: Date.now(),
+                expertName: state.currentUser.realName || state.currentUser.username,
+                count: state.selectedRecords.length,
+                time: new Date().toLocaleString(),
+                records: state.selectedRecords.map(r => ({ id: r.id, 档号: r.档号, 案卷题名: r.案卷题名 })),
+                isNew: true
+            };
+            
+            state.notifications.push(notification);
+            
+            // 清空选中列表
+            state.selectedRecords = [];
+            
+            // 更新界面
+            const selectedCount = 0;
+            elements.selectedCount.textContent = selectedCount;
+            elements.submitSelectionBtn.disabled = true;
+            elements.expertStatsSelected.textContent = selectedCount;
+            elements.expertStatsViewed.textContent = state.allRecords.filter(r => r.status === '已调阅').length;
+            
+            renderExpertTable();
+            
+            // 更新管理员界面的活跃案卷数量
+            const activeCount = state.allRecords.filter(r => r.status === '已选' || r.status === '已调阅').length;
+            elements.adminActiveRecords.textContent = activeCount;
+            
+            // 更新通知计数
+            updateNotificationCount();
+            
+            utils.showToast('选卷已提交，等待调阅');
+        }
+        
+        // 显示配合检查人员界面
+        function showStaffInterface() {
+            elements.loginSection.classList.add('hidden');
+            elements.expertInfoSection.classList.add('hidden');
+            elements.adminSection.classList.add('hidden');
+            elements.expertSection.classList.add('hidden');
+            elements.staffSection.classList.remove('hidden');
+            
+            // 重置页码
+            state.currentPage = 1;
+            
+            renderStaffTable();
+            renderNotifications();
+            updateNotificationCount();
+        }
+        
+        // 渲染配合检查人员表格
+        function renderStaffTable() {
+            // 处理搜索
+            const searchTerm = elements.staffSearchInput.value.trim().toLowerCase();
+            let filteredData = state.allRecords;
+            
+            if (searchTerm) {
+                filteredData = state.allRecords.filter(record => 
+                    record.档号.toLowerCase().includes(searchTerm) ||
+                    record.案卷题名.toLowerCase().includes(searchTerm)
+                );
+            }
+            
+            // 处理分页
+            const totalPages = Math.ceil(filteredData.length / state.pageSize);
+            const startIndex = (state.currentPage - 1) * state.pageSize;
+            const endIndex = startIndex + state.pageSize;
+            const currentData = filteredData.slice(startIndex, endIndex);
+            
+            // 更新表格内容
+            elements.staffTableBody.innerHTML = '';
+            
+            if (currentData.length === 0) {
+                elements.staffEmptyState.classList.remove('hidden');
+                elements.staffPagination.classList.add('hidden');
+            } else {
+                elements.staffEmptyState.classList.add('hidden');
+                elements.staffPagination.classList.remove('hidden');
+                
+                currentData.forEach((record) => {
+                    const row = document.createElement('tr');
+                    row.className = 'border-b hover:bg-gray-50 transition-colors';
+                    row.innerHTML = `
+                        <td class="w-16 px-4 py-3 text-sm text-gray-600 cell-auto-wrap">${record.id}</td>
+                        <td class="w-32 px-4 py-3 text-sm text-gray-800 cell-auto-wrap">${record.档号}</td>
+                        <td class="flex-1 px-4 py-3 text-sm text-gray-800 cell-auto-wrap">${record.案卷题名}</td>
+                        <td class="w-24 px-4 py-3 text-sm cell-auto-wrap">${utils.getStatusBadge(record.status)}</td>
+                    `;
+                    elements.staffTableBody.appendChild(row);
+                });
+            }
+            
+            // 更新分页信息
+            elements.staffCurrentPage.textContent = state.currentPage;
+            elements.staffTotalPages.textContent = totalPages;
+            elements.staffPrevPage.disabled = state.currentPage <= 1;
+            elements.staffNextPage.disabled = state.currentPage >= totalPages;
+        }
+        
+        // 改变配合检查人员页面
+        function changeStaffPage(direction) {
+            const searchTerm = elements.staffSearchInput.value.trim().toLowerCase();
+            let filteredData = state.allRecords;
+            
+            if (searchTerm) {
+                filteredData = state.allRecords.filter(record => 
+                    record.档号.toLowerCase().includes(searchTerm) ||
+                    record.案卷题名.toLowerCase().includes(searchTerm)
+                );
+            }
+            
+            const totalPages = Math.ceil(filteredData.length / state.pageSize);
+            
+            state.currentPage += direction;
+            
+            if (state.currentPage < 1) state.currentPage = 1;
+            if (state.currentPage > totalPages) state.currentPage = totalPages;
+            
+            renderStaffTable();
+        }
+        
+        // 渲染通知列表
+        function renderNotifications() {
+            if (state.notifications.length === 0) {
+                elements.notificationsList.innerHTML = `
+                    <div class="text-center py-10 text-gray-500">
+                        <i class="fa fa-bell-o text-4xl mb-3"></i>
+                        <p>暂无调阅通知</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            elements.notificationsList.innerHTML = '';
+            
+            // 按时间倒序显示
+            const sortedNotifications = [...state.notifications].sort((a, b) => b.id - a.id);
+            
+            sortedNotifications.forEach(notification => {
+                const notificationEl = document.createElement('div');
+                notificationEl.className = `p-4 border rounded-lg ${notification.isNew ? 'bg-primary/5 border-primary/20' : 'bg-gray-50 border-gray-100'}`;
+                
+                let recordsHtml = '';
+                notification.records.forEach(record => {
+                    recordsHtml += `<div class="text-sm text-gray-700 mt-1">• ${record.档号}：${record.案卷题名}</div>`;
+                });
+                
+                notificationEl.innerHTML = `
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <div class="font-medium text-gray-800">${notification.expertName} 申请调阅 ${notification.count} 份案卷</div>
+                            <div class="text-xs text-gray-500 mt-1">${notification.time}</div>
+                            ${recordsHtml}
+                        </div>
+                        ${notification.isNew ? '<span class="bg-primary text-white text-xs px-2 py-1 rounded-full">新</span>' : ''}
+                    </div>
+                    <div class="mt-3 flex justify-end">
+                        <button class="text-success hover:text-success/80 text-sm transition-colors" onclick="handleMarkAsProcessed(${notification.id})">
+                            <i class="fa fa-check mr-1"></i> 已处理
+                        </button>
+                    </div>
+                `;
+                
+                elements.notificationsList.appendChild(notificationEl);
+            });
+        }
+        
+        // 标记通知为已处理
+        function handleMarkAsProcessed(notificationId) {
+            const notification = state.notifications.find(n => n.id === notificationId);
+            if (notification) {
+                notification.isNew = false;
+                renderNotifications();
+                updateNotificationCount();
+                utils.showToast('已标记为处理完成');
+            }
+        }
+        
+        // 更新通知计数
+        function updateNotificationCount() {
+            const newCount = state.notifications.filter(n => n.isNew).length;
+            elements.notificationCount.textContent = newCount;
+            
+            if (newCount > 0) {
+                elements.notificationBadge.classList.remove('hidden');
+            } else {
+                elements.notificationBadge.classList.add('hidden');
+            }
+        }
+        
+        // 清空已处理通知
+        function handleClearNotifications() {
+            const newNotifications = state.notifications.filter(n => n.isNew);
+            state.notifications = newNotifications;
+            renderNotifications();
+            updateNotificationCount();
+            utils.showToast('已处理通知已清空');
+        }
+        
+        // 登出处理
+        function handleLogout() {
+            state.currentUser = null;
+            
+            // 隐藏所有界面，显示登录界面
+            elements.mainHeader.classList.add('hidden');
+            elements.adminSection.classList.add('hidden');
+            elements.expertSection.classList.add('hidden');
+            elements.staffSection.classList.add('hidden');
+            elements.expertInfoSection.classList.add('hidden');
+            elements.loginSection.classList.remove('hidden');
+            
+            // 重置登录表单
+            elements.loginForm.reset();
+            elements.loginError.classList.add('hidden');
+            
+            utils.showToast('已成功登出');
+        }
+        
+        // 初始化应用
+        function initApp() {
+            initEventListeners();
+        }
+        
+        // 启动应用
+        document.addEventListener('DOMContentLoaded', initApp);
+    </script>
+</body>
+</html>
+    
